@@ -10,12 +10,18 @@ st.write("""
 View all resume evaluations, filter by score or student, and download results as CSV.
 """)
 
-# Backend API URL
+# Backend API URL - Updated to handle both local and cloud deployments
+# For Streamlit Cloud deployment, you need to set the BACKEND_URL in the Streamlit Cloud settings
 backend_url = os.getenv('BACKEND_URL', 'http://localhost:5000')
+
+# Show backend URL for debugging in local development
+if backend_url == 'http://localhost:5000':
+    st.info(f"Backend URL: {backend_url}")
 
 # Fetch evaluations
 try:
-    response = requests.get(f"{backend_url}/results")
+    # Add timeout for better connection handling
+    response = requests.get(f"{backend_url}/results", timeout=30)
     
     if response.status_code == 200:
         evaluations = response.json()
@@ -51,32 +57,23 @@ try:
                 # Since the list endpoint doesn't return verdicts, we'll filter client-side
                 filtered_evaluations = []
                 for _, row in filtered_df.iterrows():
-                    eval_detail_response = requests.get(f"{backend_url}/results/{row['id']}")
-                    if eval_detail_response.status_code == 200:
-                        eval_detail = eval_detail_response.json()
-                        if eval_detail.get('verdict') == selected_verdict or selected_verdict == "All":
-                            filtered_evaluations.append(row)
+                    try:
+                        eval_detail_response = requests.get(f"{backend_url}/results/{row['id']}", timeout=10)
+                        if eval_detail_response.status_code == 200:
+                            eval_detail = eval_detail_response.json()
+                            if eval_detail.get('verdict') == selected_verdict:
+                                filtered_evaluations.append(row)
+                    except requests.exceptions.RequestException as e:
+                        st.warning(f"Error fetching details for evaluation {row['id']}: {str(e)}")
                 
                 filtered_df = pd.DataFrame(filtered_evaluations) if filtered_evaluations else pd.DataFrame()
             
             # Display metrics
             st.subheader("Summary")
-            col1, col2, col3, col4 = st.columns(4)
-            
-            with col1:
-                st.metric("Total Evaluations", len(df))
-            
-            with col2:
-                high_count = len(df[df['final_score'] >= 80])
-                st.metric("High Matches", high_count)
-            
-            with col3:
-                medium_count = len(df[(df['final_score'] >= 60) & (df['final_score'] < 80)])
-                st.metric("Medium Matches", medium_count)
-            
-            with col4:
-                low_count = len(df[df['final_score'] < 60])
-                st.metric("Low Matches", low_count)
+            col1, col2, col3 = st.columns(3)
+            col1.metric("Total Evaluations", len(df))
+            col2.metric("Average Score", f"{df['final_score'].mean():.1f}%")
+            col3.metric("Highest Score", f"{df['final_score'].max():.1f}%")
             
             # Display filtered results
             st.subheader("Evaluations")
@@ -104,7 +101,7 @@ try:
                 selected_id = st.selectbox("Select an evaluation to view details", filtered_df['id'].tolist())
                 
                 if selected_id:
-                    detail_response = requests.get(f"{backend_url}/results/{selected_id}")
+                    detail_response = requests.get(f"{backend_url}/results/{selected_id}", timeout=10)
                     if detail_response.status_code == 200:
                         detail_data = detail_response.json()
                         
@@ -150,6 +147,20 @@ try:
     else:
         st.error(f"Error fetching evaluations: {response.status_code} - {response.text}")
         
-except Exception as e:
+except requests.exceptions.ConnectionError as e:
     st.error(f"Error connecting to backend: {str(e)}")
-    st.info("Make sure the backend server is running at http://localhost:5000")
+    st.error("Please make sure your backend is running and accessible.")
+    if backend_url == 'http://localhost:5000':
+        st.warning("You are using the default localhost backend URL. For cloud deployment, please set the BACKEND_URL environment variable in Streamlit Cloud settings.")
+except requests.exceptions.Timeout as e:
+    st.error(f"Request to backend timed out: {str(e)}")
+except Exception as e:
+    st.error(f"An unexpected error occurred: {str(e)}")
+
+st.markdown("---")
+st.subheader("Instructions:")
+st.write("""
+1. Make sure your backend is running and accessible.
+2. For local deployment, the backend should run on http://localhost:5000
+3. For cloud deployment, you need to deploy your backend to a cloud service and set the BACKEND_URL environment variable.
+""")
