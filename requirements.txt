@@ -19,3 +19,4 @@ PyMuPDF
 rapidfuzz
 google-generativeai
 openai
+sentence-transformers
