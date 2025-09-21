@@ -27,14 +27,16 @@ The system will analyze how well each resume matches the job description.
 
 # File uploaders for multiple resumes
 resume_files = st.file_uploader("Upload your resumes (PDF or DOCX)", type=['pdf', 'docx'], accept_multiple_files=True)
-jd_text = st.text_area("Paste the job description")
+jd_file = st.file_uploader("Upload the job description (PDF/DOCX)", type=['pdf', 'docx'])
 
-
-if st.button("Evaluate All") and resume_files and jd_text:
+if st.button("Evaluate All") and resume_files and jd_file:
     results = []
     
     with st.spinner("Evaluating your resumes..."):
         try:
+            # Parse job description
+            jd_text = parse_resume(jd_file)
+            
             # Process each resume
             for resume_file in resume_files:
                 # Parse resume
@@ -103,12 +105,15 @@ if st.button("Evaluate All") and resume_files and jd_text:
                 
                 st.write("**Feedback:**")
                 st.info(selected_result['feedback'])
-        
+            
+        except Exception as e:
+            st.error(f"An error occurred during evaluation: {str(e)}")
+
 st.info("""
 **Instructions:**
 1. Upload multiple resumes (PDF or DOCX format)
-2. Paste the job description in the text area
-3. Click "Evaluate All" to process all resumes
+2. Upload one job description (PDF or DOCX format)
+3. Click "Evaluate All" to process all resumes against the job description
 4. View results in the table and detailed views
 5. Check the "Placement Dashboard" to see all evaluations
 """)
