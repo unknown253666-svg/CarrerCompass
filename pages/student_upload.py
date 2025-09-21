@@ -3,19 +3,14 @@ import pandas as pd
 import os
 import sys
 
-# Add the parent directory to the path so we can import functions from streamlit_app.py
+# Add the parent directory to the path so we can import functions from shared_utils.py
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# Import functions from the main app
+# Import functions from the shared utilities module
 try:
-    from streamlit_app import (
-        parse_resume, 
-        calculate_final_score, 
-        generate_feedback, 
-        save_evaluation
-    )
+    import shared_utils
 except ImportError as e:
-    st.error(f"Error importing functions from main app: {e}")
+    st.error(f"Error importing functions from shared utilities: {e}")
     st.stop()
 
 st.header("Student Resume Upload")
@@ -35,21 +30,21 @@ if st.button("Evaluate All") and resume_files and jd_file:
     with st.spinner("Evaluating your resumes..."):
         try:
             # Parse job description
-            jd_text = parse_resume(jd_file)
+            jd_text = shared_utils.parse_resume(jd_file)
             
             # Process each resume
             for resume_file in resume_files:
                 # Parse resume
-                resume_text = parse_resume(resume_file)
+                resume_text = shared_utils.parse_resume(resume_file)
                 
                 # Calculate scores
-                score_data = calculate_final_score(resume_text, jd_text)
+                score_data = shared_utils.calculate_final_score(resume_text, jd_text)
                 
                 # Generate feedback
-                feedback = generate_feedback(resume_text, jd_text, score_data)
+                feedback = shared_utils.generate_feedback(resume_text, jd_text, score_data)
                 
                 # Save to database
-                evaluation_id = save_evaluation(
+                evaluation_id = shared_utils.save_evaluation(
                     resume_text=resume_text,
                     jd_text=jd_text,
                     score_data=score_data,

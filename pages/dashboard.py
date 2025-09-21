@@ -3,17 +3,14 @@ import pandas as pd
 import os
 import sys
 
-# Add the parent directory to the path so we can import functions from streamlit_app.py
+# Add the parent directory to the path so we can import functions from shared_utils.py
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# Import functions from the main app
+# Import functions from the shared utilities module
 try:
-    from streamlit_app import (
-        get_all_evaluations,
-        get_evaluation_by_id
-    )
+    import shared_utils
 except ImportError as e:
-    st.error(f"Error importing functions from main app: {e}")
+    st.error(f"Error importing functions from shared utilities: {e}")
     st.stop()
 
 st.header("Placement Dashboard")
@@ -23,7 +20,7 @@ View all resume evaluations, filter by score or student, and download results as
 """)
 
 # Fetch evaluations
-evaluations = get_all_evaluations()
+evaluations = shared_utils.get_all_evaluations()
 
 if evaluations:
     # Convert to DataFrame
@@ -69,7 +66,7 @@ if evaluations:
     
     if selected_id != 0:
         # Get the selected evaluation
-        selected_eval = get_evaluation_by_id(selected_id)
+        selected_eval = shared_utils.get_evaluation_by_id(selected_id)
         
         if selected_eval:
             st.subheader(f"Evaluation Details (ID: {selected_eval['id']})")
