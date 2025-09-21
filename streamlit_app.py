@@ -61,6 +61,25 @@ def load_models():
 
 nlp, sbert = load_models()
 
+# Add the missing get_nlp function
+def get_nlp():
+    """Lazy loading of spaCy model to avoid import-time errors"""
+    global nlp
+    if nlp is None:
+        try:
+            nlp = spacy.load("en_core_web_sm")
+        except OSError:
+            # If model is not found, try to download it
+            import subprocess
+            import sys
+            try:
+                subprocess.check_call([sys.executable, "-m", "spacy", "download", "en_core_web_sm"])
+                nlp = spacy.load("en_core_web_sm")
+            except:
+                # If downloading also fails, we'll continue with None
+                pass
+    return nlp
+
 # Database functions
 def get_db_connection():
     """
@@ -228,7 +247,7 @@ STOP_EN = set("the and or of to in for with on at by an a is was are be been").u
 def calculate_hard_score(resume: str, jd: str) -> float:
     r, j = map(_clean, (resume, jd))
     # 1. keyword recall
-    jd_kw = {tok.lemma_.lower() for tok in nlp(j) if tok.pos_ in {"NOUN", "PROPN"} and len(tok) > 2 and not tok.is_stop}
+    jd_kw = {tok.lemma_.lower() for tok in get_nlp()(j) if tok.pos_ in {"NOUN", "PROPN"} and len(tok) > 2 and not tok.is_stop}
     if not jd_kw:
         kw_score = 0.0
     else:
@@ -256,19 +275,21 @@ def extract_missing_skills(resume: str, jd: str):
     tech = {w.lower() for w in re.findall(r'\b[A-Z][a-z]+\b', jd)} - {"the","and","for","with","from","this","that","need"}
     
     # Process with spaCy if available
-    if nlp:
-        doc = nlp(jd_lower)
+    if nlp:  # This should use get_nlp() but nlp is already defined from load_models
+        # Use the loaded nlp model
+        doc = nlp(jd_lower) if nlp is not None else None
         # Extract bigrams that contain relevant technical terms
         bigrams = set()
-        for i in range(len(doc)-1):
-            # Check if either token is a relevant technical term
-            if any(token.text.lower() in {"spark","kafka","pyspark","databricks","nlp","vision","devops","python","pandas","numpy","ml","deep","learning","sql","tableau","docker","kubernetes"} for token in (doc[i], doc[i+1])):
-                # Create bigram and ensure it doesn't have punctuation
-                bigram = " ".join([doc[i].text, doc[i+1].text])
-                # Filter out bigrams with common words like "and", "with", etc. at the beginning or end
-                words = bigram.split()
-                if len(words) == 2 and all(c.isalpha() or c.isspace() for c in bigram) and words[0] not in {"and","with","for","need"} and words[1] not in {"and","with","for","need"}:
-                    bigrams.add(bigram)
+        if doc is not None:
+            for i in range(len(doc)-1):
+                # Check if either token is a relevant technical term
+                if any(token.text.lower() in {"spark","kafka","pyspark","databricks","nlp","vision","devops","python","pandas","numpy","ml","deep","learning","sql","tableau","docker","kubernetes"} for token in (doc[i], doc[i+1])):
+                    # Create bigram and ensure it doesn't have punctuation
+                    bigram = " ".join([doc[i].text, doc[i+1].text])
+                    # Filter out bigrams with common words like "and", "with", etc. at the beginning or end
+                    words = bigram.split()
+                    if len(words) == 2 and all(c.isalpha() or c.isspace() for c in bigram) and words[0] not in {"and","with","for","need"} and words[1] not in {"and","with","for","need"}:
+                        bigrams.add(bigram)
         
         # Combine candidates and filter out those present in resume
         missing = sorted([c for c in (tech | bigrams) if c not in resume_lower and len(c) > 2])[:12]
@@ -421,6 +442,8 @@ def export_csv():
     writer = csv.writer(output)
     writer.writerow(['Evaluation ID', 'Resume Text', 'JD Text', 'Hard Score', 'Semantic Score', 'Final Score', 'Verdict', 'Missing Skills', 'Feedback'])
     for evaluation in evaluations:
+        # Handle case where feedback might not be present
+        feedback = evaluation.get('feedback', '') if isinstance(evaluation, dict) else ''
         writer.writerow([
             evaluation['id'],
             evaluation['resume_text'],
@@ -430,7 +453,7 @@ def export_csv():
             evaluation['final_score'],
             evaluation['verdict'],
             ', '.join(evaluation['missing_skills']),
-            evaluation.get('feedback', '')
+            feedback
         ])
     output.seek(0)
     return output.getvalue()
