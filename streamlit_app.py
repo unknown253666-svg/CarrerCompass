@@ -22,9 +22,9 @@ st.set_page_config(
 
 # Custom HTML for header
 st.markdown("""
-<div style="background-color: #f0f8ff; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
-    <h1 style="color: #4a90e2;">🧭 Career Compass</h1>
-    <p>Upload your resume and get AI-powered insights to optimize your job application success.</p>
+<div style="background-color: #000000; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+    <h1 style="color: #ffffff;">🧭 Career Compass</h1>
+    <p style="color: #ffffff;">Upload your resume and get AI-powered insights to optimize your job application success.</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -306,7 +306,7 @@ elif page == "History":
 
 # Footer
 st.markdown("""
-<div style="background-color: #f0f8ff; padding: 15px; border-radius: 10px; margin-top: 30px; text-align: center;">
-    <p>© 2023 Career Compass | AI-Powered Resume Analysis</p>
+<div style="background-color: #000000; padding: 15px; border-radius: 10px; margin-top: 30px; text-align: center;">
+    <p style="color: #ffffff;">© 2023 Career Compass | AI-Powered Resume Analysis</p>
 </div>
 """, unsafe_allow_html=True)
