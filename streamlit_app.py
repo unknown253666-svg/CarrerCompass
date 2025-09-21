@@ -3,7 +3,6 @@ import pandas as pd
 import os
 from datetime import datetime
 import base64
-import requests
 import json
 import tempfile
 import sqlite3
@@ -477,7 +476,7 @@ st.markdown("""
 # Sidebar
 with st.sidebar:
     st.header("Navigation")
-    page = st.radio("Go to", ["Upload Resume", "History"])
+    page = st.radio("Go to", ["Upload Resume", "Student Upload", "Placement Dashboard", "History"])
     
     st.header("About")
     st.write("Career Compass helps you optimize your resume for better job application success using AI analysis.")
@@ -552,6 +551,176 @@ if page == "Upload Resume":
                     st.error(f"An error occurred during analysis: {str(e)}")
         else:
             st.warning("Please upload a resume and enter a job description.")
+
+elif page == "Placement Dashboard":
+    st.header("Placement Dashboard")
+    
+    st.write("""
+    View all resume evaluations, filter by score or student, and download results as CSV.
+    """)
+    
+    # Fetch evaluations
+    evaluations = get_all_evaluations()
+    
+    if evaluations:
+        # Convert to DataFrame
+        df = pd.DataFrame(evaluations)
+        
+        # Format timestamp
+        df['timestamp'] = pd.to_datetime(df['timestamp']).dt.strftime('%Y-%m-%d %H:%M:%S')
+        
+        # Filters
+        st.sidebar.subheader("Filters")
+        
+        # Score filter
+        min_score, max_score = st.sidebar.slider(
+            "Final Score Range",
+            0.0, 100.0, (0.0, 100.0)
+        )
+        
+        # Verdict filter
+        verdict_options = ["All", "High", "Medium", "Low"]
+        selected_verdict = st.sidebar.selectbox("Verdict", verdict_options)
+        
+        # Apply filters
+        filtered_df = df[
+            (df['final_score'] >= min_score) &
+            (df['final_score'] <= max_score)
+        ]
+        
+        if selected_verdict != "All":
+            filtered_df = filtered_df[filtered_df['verdict'] == selected_verdict]
+        
+        # Show filtered results count
+        st.write(f"Showing {len(filtered_df)} of {len(df)} evaluations")
+        
+        # Display table
+        st.dataframe(filtered_df[['id', 'final_score', 'verdict', 'timestamp']].style.format({
+            'final_score': '{:.2f}%'
+        }))
+        
+        # Show details for a selected evaluation
+        selected_id = st.selectbox("Select evaluation to view details", filtered_df['id'].tolist() if not filtered_df.empty else [0], 
+                                  format_func=lambda x: f"Evaluation {x}" if x != 0 else "Select an evaluation")
+        
+        if selected_id != 0:
+            # Get the selected evaluation
+            selected_eval = get_evaluation_by_id(selected_id)
+            
+            if selected_eval:
+                st.subheader(f"Evaluation Details (ID: {selected_eval['id']})")
+                
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("Hard Score", f"{selected_eval['hard_score']:.2f}%")
+                with col2:
+                    st.metric("Semantic Score", f"{selected_eval['semantic_score']:.2f}%")
+                with col3:
+                    st.metric("Final Score", f"{selected_eval['final_score']:.2f}%")
+                
+                st.write(f"**Verdict:** {selected_eval['verdict']}")
+                st.write(f"**Timestamp:** {selected_eval['timestamp']}")
+                
+                if selected_eval['missing_skills']:
+                    st.write("**Missing Skills:**")
+                    st.write(", ".join(selected_eval['missing_skills']))
+                
+                if selected_eval.get('feedback'):
+                    st.write("**Feedback:**")
+                    st.info(selected_eval['feedback'])
+                
+                with st.expander("View Resume Text"):
+                    st.text(selected_eval['resume_text'])
+                
+                with st.expander("View Job Description Text"):
+                    st.text(selected_eval['jd_text'])
+    else:
+        st.info("No evaluations found in the database.")
+
+elif page == "Student Upload":
+    st.header("Student Resume Upload")
+    
+    st.write("""
+    Upload multiple resumes and job descriptions to get relevance scores and verdicts for each.
+    The system will analyze how well each resume matches the job description.
+    """)
+    
+    # File uploaders for multiple resumes
+    resume_files = st.file_uploader("Upload your resumes (PDF or DOCX)", type=['pdf', 'docx'], accept_multiple_files=True)
+    jd_text = st.text_area("Paste the job description")
+    
+    if st.button("Evaluate All") and resume_files and jd_text:
+        results = []
+        
+        with st.spinner("Evaluating your resumes..."):
+            try:
+                # Process each resume
+                for resume_file in resume_files:
+                    # Parse resume
+                    resume_text = parse_resume(resume_file)
+                    
+                    # Calculate scores
+                    score_data = calculate_final_score(resume_text, jd_text)
+                    
+                    # Generate feedback
+                    feedback = generate_feedback(resume_text, jd_text, score_data)
+                    
+                    results.append({
+                        'filename': resume_file.name,
+                        'hard_score': score_data['hard_score'],
+                        'semantic_score': score_data['semantic_score'],
+                        'final_score': score_data['total_score'],
+                        'verdict': score_data['verdict'],
+                        'missing_skills': score_data['missing_skills'],
+                        'feedback': feedback
+                    })
+                
+                # Display results
+                st.success(f"Successfully evaluated {len(results)} resumes!")
+                
+                # Convert to DataFrame for display
+                results_df = pd.DataFrame(results)
+                results_df_display = results_df[['filename', 'hard_score', 'semantic_score', 'final_score', 'verdict']].copy()
+                results_df_display.style.format({
+                    'hard_score': '{:.2f}%',
+                    'semantic_score': '{:.2f}%',
+                    'final_score': '{:.2f}%'
+                })
+                
+                st.dataframe(results_df_display.style.format({
+                    'hard_score': '{:.2f}%',
+                    'semantic_score': '{:.2f}%',
+                    'final_score': '{:.2f}%'
+                }))
+                
+                # Show detailed view
+                selected_file = st.selectbox("Select a file to view detailed results", 
+                                           results_df['filename'].tolist() if not results_df.empty else ["No files evaluated"])
+                
+                if selected_file != "No files evaluated":
+                    selected_result = results_df[results_df['filename'] == selected_file].iloc[0]
+                    
+                    st.subheader(f"Detailed Results for {selected_file}")
+                    
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric("Hard Score", f"{selected_result['hard_score']:.2f}%")
+                    with col2:
+                        st.metric("Semantic Score", f"{selected_result['semantic_score']:.2f}%")
+                    with col3:
+                        st.metric("Final Score", f"{selected_result['final_score']:.2f}%")
+                    
+                    st.write(f"**Verdict:** {selected_result['verdict']}")
+                    
+                    if selected_result['missing_skills']:
+                        st.write("**Missing Skills:**")
+                        st.write(", ".join(selected_result['missing_skills']))
+                    
+                    st.write("**Feedback:**")
+                    st.info(selected_result['feedback'])
+                
+            except Exception as e:
+                st.error(f"An error occurred during evaluation: {str(e)}")
 
 elif page == "History":
     st.header("Analysis History")
