@@ -152,7 +152,7 @@ def evaluate():
             'message': 'Evaluation completed successfully',
             'hard_score': score_data['hard_score'],
             'semantic_score': score_data['semantic_score'],
-            'final_score': score_data['total_score'],  # Using the correct key name
+            'total_score': score_data['total_score'],  # Changed from final_score to total_score
             'verdict': score_data['verdict'],
             'missing_skills': missing_skills,
             'feedback': feedback,
@@ -194,7 +194,7 @@ def evaluate_multiple():
                 'filename': filename,
                 'hard_score': score_data['hard_score'],
                 'semantic_score': score_data['semantic_score'],
-                'final_score': score_data['total_score'],
+                'total_score': score_data['total_score'],  # Changed from final_score to total_score
                 'verdict': score_data['verdict'],
                 'missing_skills': missing_skills,
                 'feedback': feedback
