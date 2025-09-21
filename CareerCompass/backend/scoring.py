@@ -14,8 +14,23 @@ from sentence_transformers import SentenceTransformer
 from fuzzywuzzy import fuzz
 
 # ------------------ load once ------------------
-nlp = spacy.load("en_core_web_sm")  # Enable all components including parser for noun_chunks
+# Load models lazily to avoid import-time errors
+_nlp = None
 _sbert = SentenceTransformer("all-MiniLM-L6-v2")
+
+def get_nlp():
+    """Lazy loading of spaCy model to avoid import-time errors"""
+    global _nlp
+    if _nlp is None:
+        try:
+            _nlp = spacy.load("en_core_web_sm")
+        except OSError:
+            # If model is not found, try to download it
+            import subprocess
+            import sys
+            subprocess.check_call([sys.executable, "-m", "spacy", "download", "en_core_web_sm"])
+            _nlp = spacy.load("en_core_web_sm")
+    return _nlp
 
 # ------------------ text clean ------------------
 def _clean(text: str) -> str:
@@ -29,7 +44,7 @@ STOP_EN = set("the and or of to in for with on at by an a is was are be been").u
 def calculate_hard_score(resume: str, jd: str) -> float:
     r, j = map(_clean, (resume, jd))
     # 1. keyword recall
-    jd_kw = {tok.lemma_.lower() for tok in nlp(j) if tok.pos_ in {"NOUN", "PROPN"} and len(tok) > 2 and not tok.is_stop}
+    jd_kw = {tok.lemma_.lower() for tok in get_nlp()(j) if tok.pos_ in {"NOUN", "PROPN"} and len(tok) > 2 and not tok.is_stop}
     if not jd_kw:
         kw_score = 0.0
     else:
