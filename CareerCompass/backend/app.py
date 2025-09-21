@@ -7,15 +7,23 @@ from resume_parser import parse_resume
 import os
 import io
 import csv
-import spacy
 
 # Download spaCy model if not present
 try:
+    import spacy
     nlp = spacy.load("en_core_web_sm")
 except OSError:
     import subprocess
     import sys
+    # Download the spaCy English model
     subprocess.check_call([sys.executable, "-m", "spacy", "download", "en_core_web_sm"])
+    import spacy
+    nlp = spacy.load("en_core_web_sm")
+except ImportError:
+    # Handle case where spacy is not installed
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "spacy"])
+    subprocess.check_call([sys.executable, "-m", "spacy", "download", "en_core_web_sm"])
+    import spacy
     nlp = spacy.load("en_core_web_sm")
 
 app = Flask(__name__)

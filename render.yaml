@@ -3,7 +3,7 @@ services:
     name: career-compass-backend
     env: python
     plan: free
-    buildCommand: "pip install -r requirements.txt"
+    buildCommand: "pip install -r requirements.txt && python -m spacy download en_core_web_sm"
     startCommand: "python CareerCompass/backend/app.py"
     envVars:
       - key: PORT
