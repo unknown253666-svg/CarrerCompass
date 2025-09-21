@@ -27,6 +27,7 @@ except ImportError:
     nlp = spacy.load("en_core_web_sm")
 
 app = Flask(__name__)
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 
 # Initialize database and logging
 init_db()

@@ -1,0 +1,19 @@
+Deployment Notes
+===============
+
+Memory Usage Optimization
+-------------------------
+The application uses several memory-intensive libraries:
+- sentence-transformers
+- spaCy with en_core_web_sm model
+- scikit-learn
+
+To reduce memory usage:
+1. Using the "starter" plan on Render instead of "free" plan
+2. Limiting file upload size to 16MB
+3. Optimizing model loading with lazy initialization
+
+If memory issues persist:
+1. Consider using a more lightweight sentence transformer model
+2. Reduce the maximum file upload size
+3. Upgrade to a higher-tier Render plan
