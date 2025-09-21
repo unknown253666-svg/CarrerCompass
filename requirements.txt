@@ -1,4 +1,5 @@
 Flask
+Flask-CORS
 pdfplumber
 docx2txt
 requests
