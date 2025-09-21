@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: career-compass-backend
+    env: python
+    plan: free
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "python CareerCompass/backend/app.py"
+    envVars:
+      - key: PORT
+        value: 5000
